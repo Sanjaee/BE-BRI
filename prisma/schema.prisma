@@ -1,0 +1,140 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  username  String   @unique
+  password  String
+  pin       String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  outlet      Outlet?
+  accounts    Account[]
+  dailyData   DailyData[]
+  settings    Settings?
+}
+
+model Outlet {
+  id        String   @id @default(cuid())
+  userId    String
+  name      String   @default("ENGGAL JAYA")
+  address   String   @default("Jayapura, Papua")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId])
+}
+
+model Account {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String   // bri1, bri2, mandiri, etc
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+model DailyData {
+  id        String   @id @default(cuid())
+  userId    String
+  date      String   // Format: YYYY-MM-DD
+  initialCapital Float @default(0)
+  bonusFee  Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  transactions Transaction[]
+  capitalFlows CapitalFlow[]
+  accountBalances AccountBalance[]
+  
+  @@unique([userId, date])
+  @@index([userId, date])
+}
+
+model AccountBalance {
+  id          String   @id @default(cuid())
+  dailyDataId String
+  accountKey  String
+  balance     Float    @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  dailyData DailyData @relation(fields: [dailyDataId], references: [id], onDelete: Cascade)
+  
+  @@unique([dailyDataId, accountKey])
+  @@index([dailyDataId])
+}
+
+model Transaction {
+  id                String   @id @default(cuid())
+  dailyDataId       String
+  type              String   // Tarik Tunai, Transfer, etc
+  date              String   // Format: YYYY-MM-DD
+  time              String?  // Format: HH:mm
+  customerName      String?
+  sourceAccount     String   // account key
+  amount            Float
+  internalAdminFee  Float    @default(0)
+  externalAdminFee  Float    @default(0)
+  bankFee           Float    @default(0)
+  bankTujuan        String?
+  ewalletTujuan     String?
+  financeTujuan      String?
+  pegadaianTujuan   String?
+  listrikTujuan     String?
+  teleponTujuan     String?
+  goodsType         String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  dailyData DailyData @relation(fields: [dailyDataId], references: [id], onDelete: Cascade)
+  
+  @@index([dailyDataId])
+  @@index([date])
+}
+
+model CapitalFlow {
+  id                  String   @id @default(cuid())
+  dailyDataId         String
+  type                String   // cash_to_bank, bank_to_cash, etc
+  amount              Float
+  sourceBankAccount   String?
+  destinationBankAccount String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  dailyData DailyData @relation(fields: [dailyDataId], references: [id], onDelete: Cascade)
+  
+  @@index([dailyDataId])
+}
+
+model Settings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  feeTiers  Json     // { BRI_INTRA: [...], INTERBANK: [...], CASHOUT: [...] }
+  simpleFees Json   // { "Setor Tunai": 3000, ... }
+  bonusFeeAccount String @default("bri1")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
